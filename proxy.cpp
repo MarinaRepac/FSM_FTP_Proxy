@@ -8,7 +8,7 @@ using namespace std;
 sockaddr_in proxyAddress, serverAddress, chromeAddress;
 
 // sockets
-SOCKET serverSocket, chromeSocket, clientSocket;
+SOCKET serverSocket, chromeSocket, clientSocket, dataSocket;
 
 char buffer[BUFFER_SIZE];
 
@@ -55,6 +55,7 @@ void ProxyAutomate::Initialize() {
 	InitEventProc(AUTHENTICATION, MSG_UserCheck, (PROC_FUN_PTR)&ProxyAutomate::user_check);
 	InitEventProc(AUTHENTICATION, MSG_PasswordCheck, (PROC_FUN_PTR)&ProxyAutomate::pass_check);
 	InitEventProc(LOG_IN, MSG_LogIn, (PROC_FUN_PTR)&ProxyAutomate::log_in);
+	InitEventProc(LOGGED_IN, MSG_LoggedIn, (PROC_FUN_PTR)&ProxyAutomate::logged_in);
 }
 
 /* Initial system message */
@@ -134,6 +135,7 @@ void ProxyAutomate::connectingToFTP() {
 	serverAddress.sin_addr.S_un.S_addr = inet_addr(ADDRESS);			
 	serverAddress.sin_port = htons(SERVER_PORT);	
 
+	// Create a proxy socket for server
 	clientSocket = socket(AF_INET,		 // IPv4 address famly
 						  SOCK_STREAM,   // stream socket
 						  0);			 // TCP
@@ -411,9 +413,9 @@ void ProxyAutomate::log_in() {
 		printf("Send message failed with error: %d\n", WSAGetLastError());
 	}
 
-	// LIST 
+	// LIST (returns information of a file or directory if specified, else information of the current working directory is returned)
 
-	/*memset(buffer, 0, BUFFER_SIZE);
+	memset(buffer, 0, BUFFER_SIZE);
 	if (recv(clientSocket, buffer, BUFFER_SIZE, 0) < 0) {
 		printf("Recv failed with error: %d\n", WSAGetLastError());
 	}
@@ -423,5 +425,36 @@ void ProxyAutomate::log_in() {
 
 	if (send(chromeSocket, buffer, strlen(buffer), 0) < 0) {
 		printf("Send message failed with error: %d\n", WSAGetLastError());
-	}*/
+	}
+
+	memset(buffer, 0, BUFFER_SIZE);
+	if (recv(chromeSocket, buffer, BUFFER_SIZE, 0) < 0) {
+		printf("Recv failed with error: %d\n", WSAGetLastError());
+	}
+
+	PrepareNewMessage(0x00, MSG_LoggedIn);
+	SetMsgToAutomate(PROXY_FSM);
+	SetMsgObjectNumberTo(GetObjectId());
+	SendMessage(PROXY_MBX_ID);
+	SetState(LOGGED_IN);
+}
+
+void ProxyAutomate::logged_in() {
+	printf("\n-----------------------------------------------------------\n");
+	printf("LOGGED IN\n");
+	printf("-----------------------------------------------------------\n\n");
+			
+	memset(buffer, 0, BUFFER_SIZE);
+	if (recv(clientSocket, buffer, BUFFER_SIZE, 0) < 0) {
+		printf("Recv failed with error: %d\n", WSAGetLastError());
+	}
+
+	printf("Receiving message from server: %s", buffer);
+	printf("Sending %s to Chrome...\n", buffer);
+
+	if (send(chromeSocket, buffer, strlen(buffer), 0) < 0) {
+		printf("Send message failed with error: %d\n", WSAGetLastError());
+	}
+
+	
 }

@@ -11,7 +11,7 @@
 typedef stdMsg_pc16_pl16 StandardMessage;
 
 class ProxyAutomate : public FiniteStateMachine {
-	enum ProxyAutomateStates { IDLE, CONNECTING, AUTHENTICATION, LOG_IN };
+	enum ProxyAutomateStates { IDLE, CONNECTING, AUTHENTICATION, LOG_IN, LOGGED_IN };
 
 	StandardMessage StandardMsgCoding;
 
@@ -30,6 +30,7 @@ class ProxyAutomate : public FiniteStateMachine {
 	void user_check();
 	void pass_check();
 	void log_in();
+	void logged_in();
 
 public:
 	ProxyAutomate();
