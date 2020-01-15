@@ -10,7 +10,7 @@ sockaddr_in proxyAddress, serverAddress, chromeAddress;
 // sockets
 SOCKET serverSocket, chromeSocket, clientSocket;
 
-char buffer[200];
+char buffer[BUFFER_SIZE];
 
 ProxyAutomate::ProxyAutomate() : FiniteStateMachine( PROXY_FSM, PROXY_MBX_ID, 10, 10, 10) {
 }
@@ -52,7 +52,9 @@ void ProxyAutomate::Initialize() {
 
 	InitEventProc(IDLE, MSG_ConnectingToChrome, (PROC_FUN_PTR)&ProxyAutomate::connectingToChrome);
 	InitEventProc(CONNECTING, MSG_ConnectingToServer, (PROC_FUN_PTR)&ProxyAutomate::connectingToFTP);
-	InitEventProc(USER_CHECK, MSG_UserCheck, (PROC_FUN_PTR)&ProxyAutomate::user_check);
+	InitEventProc(AUTHENTICATION, MSG_UserCheck, (PROC_FUN_PTR)&ProxyAutomate::user_check);
+	InitEventProc(AUTHENTICATION, MSG_PasswordCheck, (PROC_FUN_PTR)&ProxyAutomate::pass_check);
+	InitEventProc(LOG_IN, MSG_LogIn, (PROC_FUN_PTR)&ProxyAutomate::log_in);
 }
 
 /* Initial system message */
@@ -64,9 +66,9 @@ void ProxyAutomate::Start() {
 }
 
 void ProxyAutomate::connectingToChrome() {
-	printf("-----------------------------------------------------------\n"); 
+	printf("\n-----------------------------------------------------------\n"); 
 	printf("CONNECTING TO GOOGLE CHROME\n");
-	printf("-----------------------------------------------------------\n"); 
+	printf("-----------------------------------------------------------\n\n"); 
 
 	// WSADATA data structure that is to receive details of the Windows Sockets implementation
     WSADATA wsaData;
@@ -114,8 +116,7 @@ void ProxyAutomate::connectingToChrome() {
 				   0);					// TCP
 
 	chromeSocket = accept(serverSocket, (struct sockaddr *)&proxyAddress, NULL);
-	printf("Chrome connection request arrived\n");
-	printf("accepted chromeSocket = %d\n", chromeSocket);
+	printf("Chrome connection request arrived...\n");
 
 	PrepareNewMessage(0x00, MSG_ConnectingToServer);
 	SetMsgToAutomate(PROXY_FSM);
@@ -125,9 +126,9 @@ void ProxyAutomate::connectingToChrome() {
 }
 
 void ProxyAutomate::connectingToFTP() {
-	printf("-----------------------------------------------------------\n");
+	printf("\n-----------------------------------------------------------\n");
 	printf("CONNECTING TO FTP SERVER\n");
-	printf("-----------------------------------------------------------\n");
+	printf("-----------------------------------------------------------\n\n");
 
 	serverAddress.sin_family = AF_INET; 							
 	serverAddress.sin_addr.S_un.S_addr = inet_addr(ADDRESS);			
@@ -143,45 +144,88 @@ void ProxyAutomate::connectingToFTP() {
 
 	printf("Proxy connected to server...\n");
 
-	memset(buffer, 0, 200);
-	int bytes = recv(clientSocket, buffer, 200, 0);
+	memset(buffer, 0, BUFFER_SIZE);
+	int bytes = recv(clientSocket, buffer, BUFFER_SIZE, 0);
 	if (bytes > 0)
 	{
-		printf("%s\n", buffer);
+		printf("Receiving message from server: %s", buffer);
 	}
 
-	printf("Sending from server to Chrome...\n");
+	printf("Sending %s to Chrome...\n", buffer);
 
 	if (send(chromeSocket, buffer, strlen(buffer), 0) < 0) {
 		printf("Send message failed with error: %d\n", WSAGetLastError());
 	}
 
-	printf("Send to Chrome...\n");
-
 	PrepareNewMessage(0x00, MSG_UserCheck);
 	SetMsgToAutomate(PROXY_FSM);
 	SetMsgObjectNumberTo(GetObjectId());
 	SendMessage(PROXY_MBX_ID);
-	SetState(USER_CHECK);
+	SetState(AUTHENTICATION);
 }
 
 void ProxyAutomate::user_check() {
-	printf("-----------------------------------------------------------\n");
+	printf("\n-----------------------------------------------------------\n");
 	printf("USER CHECK\n");
-	printf("-----------------------------------------------------------\n");
+	printf("-----------------------------------------------------------\n\n");
 
-	printf("Recv from Chrome...\n");
-
-	memset(buffer, 0, 200);
-	if (recv(chromeSocket, buffer, 200, 0) < 0) {
+	memset(buffer, 0, BUFFER_SIZE);
+	if (recv(chromeSocket, buffer, BUFFER_SIZE, 0) < 0) {
 		printf("Recv failed with error: %d\n", WSAGetLastError());
 	}
 
-	printf("%s\n", buffer);
+	printf("Receiving message from Chrome: %s", buffer);
+	printf("Sending %s to server...\n", buffer);
 
-	/*PrepareNewMessage(0x00, MSG_UserCheck);
+	if (send(clientSocket, buffer, strlen(buffer), 0) < 0) {
+		printf("Send message failed with error: %d\n", WSAGetLastError());
+	}
+
+	PrepareNewMessage(0x00, MSG_PasswordCheck);
 	SetMsgToAutomate(PROXY_FSM);
 	SetMsgObjectNumberTo(GetObjectId());
 	SendMessage(PROXY_MBX_ID);
-	SetState(USER_CHECK);*/
+	SetState(AUTHENTICATION);
+}
+
+void ProxyAutomate::pass_check() {
+	printf("\n-----------------------------------------------------------\n");
+	printf("PASSWORD CHECK\n");
+	printf("-----------------------------------------------------------\n\n");
+
+	memset(buffer, 0, BUFFER_SIZE);
+	if (recv(clientSocket, buffer, BUFFER_SIZE, 0) < 0) {
+		printf("Recv failed with error: %d\n", WSAGetLastError());
+	}
+
+	printf("Receiving message from server: %s", buffer);
+	printf("Sending %s to Chrome...\n", buffer);
+
+	if (send(chromeSocket, buffer, strlen(buffer), 0) < 0) {
+		printf("Send message failed with error: %d\n", WSAGetLastError());
+	}
+
+	memset(buffer, 0, BUFFER_SIZE);
+	if (recv(chromeSocket, buffer, BUFFER_SIZE, 0) < 0) {
+		printf("Recv failed with error: %d\n", WSAGetLastError());
+	}
+
+	printf("Receiving message from Chrome: %s", buffer);
+	printf("Sending %s to server...\n", buffer);
+
+	if (send(clientSocket, buffer, strlen(buffer), 0) < 0) {
+		printf("Send message failed with error: %d\n", WSAGetLastError());
+	}
+
+	PrepareNewMessage(0x00, MSG_LogIn);
+	SetMsgToAutomate(PROXY_FSM);
+	SetMsgObjectNumberTo(GetObjectId());
+	SendMessage(PROXY_MBX_ID);
+	SetState(LOG_IN);
+}
+
+void ProxyAutomate::log_in() {
+	printf("\n-----------------------------------------------------------\n");
+	printf("LOG IN\n");
+	printf("-----------------------------------------------------------\n\n");
 }
