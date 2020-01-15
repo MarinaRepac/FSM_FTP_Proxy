@@ -7,7 +7,7 @@
 #define ADDRESS "127.0.0.1"
 #define SERVER_PORT 21
 #define PROXY_PORT 3000
-#define BUFFER_SIZE 512
+#define BUFFER_SIZE 1000
 //#define TIMER1_ID 0
 
 #define BUFFER_SIZE 512

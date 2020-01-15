@@ -228,4 +228,200 @@ void ProxyAutomate::log_in() {
 	printf("\n-----------------------------------------------------------\n");
 	printf("LOG IN\n");
 	printf("-----------------------------------------------------------\n\n");
+
+	// logged in
+
+	memset(buffer, 0, BUFFER_SIZE);
+	if (recv(clientSocket, buffer, BUFFER_SIZE, 0) < 0) {
+		printf("Recv failed with error: %d\n", WSAGetLastError());
+	}
+
+	printf("Receiving message from server: %s", buffer);
+	printf("Sending %s to Chrome...\n", buffer);
+
+	if (send(chromeSocket, buffer, strlen(buffer), 0) < 0) {
+		printf("Send message failed with error: %d\n", WSAGetLastError());
+	}
+
+	memset(buffer, 0, BUFFER_SIZE);
+	if (recv(chromeSocket, buffer, BUFFER_SIZE, 0) < 0) {
+		printf("Recv failed with error: %d\n", WSAGetLastError());
+	}
+
+	printf("Receiving message from Chrome: %s", buffer);
+	printf("Sending %s to server...\n\n", buffer);
+
+	if (send(clientSocket, buffer, strlen(buffer), 0) < 0) {
+		printf("Send message failed with error: %d\n", WSAGetLastError());
+	}
+
+	// SYST (return system type)
+
+	memset(buffer, 0, BUFFER_SIZE);
+	if (recv(clientSocket, buffer, BUFFER_SIZE, 0) < 0) {
+		printf("Recv failed with error: %d\n", WSAGetLastError());
+	}
+
+	printf("Receiving message from server: %s", buffer);
+	printf("Sending %s to Chrome...\n", buffer);
+
+	if (send(chromeSocket, buffer, strlen(buffer), 0) < 0) {
+		printf("Send message failed with error: %d\n", WSAGetLastError());
+	}
+
+	memset(buffer, 0, BUFFER_SIZE);
+	if (recv(chromeSocket, buffer, BUFFER_SIZE, 0) < 0) {
+		printf("Recv failed with error: %d\n", WSAGetLastError());
+	}
+
+	printf("Receiving message from Chrome: %s", buffer);
+	printf("Sending %s to server...\n\n", buffer);
+
+	if (send(clientSocket, buffer, strlen(buffer), 0) < 0) {
+		printf("Send message failed with error: %d\n", WSAGetLastError());
+	}
+
+	// FEAT (get the feature list implemented by the server)
+
+	memset(buffer, 0, BUFFER_SIZE);
+	if (recv(clientSocket, buffer, BUFFER_SIZE, 0) < 0) {
+		printf("Recv failed with error: %d\n", WSAGetLastError());
+	}
+
+	printf("Receiving message from server: \n%s", buffer);
+	printf("Sending %s to Chrome...\n", buffer);
+
+	if (send(chromeSocket, buffer, strlen(buffer), 0) < 0) {
+		printf("Send message failed with error: %d\n", WSAGetLastError());
+	}
+
+	memset(buffer, 0, BUFFER_SIZE);
+	if (recv(chromeSocket, buffer, BUFFER_SIZE, 0) < 0) {
+		printf("Recv failed with error: %d\n", WSAGetLastError());
+	}
+
+	printf("Receiving message from Chrome: %s", buffer);
+	printf("Sending %s to server...\n\n", buffer);
+
+	if (send(clientSocket, buffer, strlen(buffer), 0) < 0) {
+		printf("Send message failed with error: %d\n", WSAGetLastError());
+	}
+
+	// PWD (print working directory; returns the current directory of the host)
+
+	memset(buffer, 0, BUFFER_SIZE);
+	if (recv(clientSocket, buffer, BUFFER_SIZE, 0) < 0) {
+		printf("Recv failed with error: %d\n", WSAGetLastError());
+	}
+
+	printf("Receiving message from server: %s", buffer);
+	printf("Sending %s to Chrome...\n", buffer);
+
+	if (send(chromeSocket, buffer, strlen(buffer), 0) < 0) {
+		printf("Send message failed with error: %d\n", WSAGetLastError());
+	}
+
+	memset(buffer, 0, BUFFER_SIZE);
+	if (recv(chromeSocket, buffer, BUFFER_SIZE, 0) < 0) {
+		printf("Recv failed with error: %d\n", WSAGetLastError());
+	}
+
+	printf("Receiving message from Chrome: %s", buffer);
+	printf("Sending %s to server...\n\n", buffer);
+
+	if (send(clientSocket, buffer, strlen(buffer), 0) < 0) {
+		printf("Send message failed with error: %d\n", WSAGetLastError());
+	}
+
+	// TYPE I (sets the transfer mode - binary) 
+
+	memset(buffer, 0, BUFFER_SIZE);
+	if (recv(clientSocket, buffer, BUFFER_SIZE, 0) < 0) {
+		printf("Recv failed with error: %d\n", WSAGetLastError());
+	}
+
+	printf("Receiving message from server: %s", buffer);
+	printf("Sending %s to Chrome...\n", buffer);
+
+	if (send(chromeSocket, buffer, strlen(buffer), 0) < 0) {
+		printf("Send message failed with error: %d\n", WSAGetLastError());
+	}
+
+	memset(buffer, 0, BUFFER_SIZE);
+	if (recv(chromeSocket, buffer, BUFFER_SIZE, 0) < 0) {
+		printf("Recv failed with error: %d\n", WSAGetLastError());
+	}
+
+	printf("Receiving message from Chrome: %s", buffer);
+	printf("Sending %s to server...\n\n", buffer);
+
+	if (send(clientSocket, buffer, strlen(buffer), 0) < 0) {
+		printf("Send message failed with error: %d\n", WSAGetLastError());
+	}
+
+	// PASV (enter passive mode)
+
+	memset(buffer, 0, BUFFER_SIZE);
+	if (recv(clientSocket, buffer, BUFFER_SIZE, 0) < 0) {
+		printf("Recv failed with error: %d\n", WSAGetLastError());
+	}
+
+	printf("Receiving message from server: %s", buffer);
+	printf("Sending %s to Chrome...\n", buffer);
+
+	if (send(chromeSocket, buffer, strlen(buffer), 0) < 0) {
+		printf("Send message failed with error: %d\n", WSAGetLastError());
+	}
+
+	memset(buffer, 0, BUFFER_SIZE);
+	if (recv(chromeSocket, buffer, BUFFER_SIZE, 0) < 0) {
+		printf("Recv failed with error: %d\n", WSAGetLastError());
+	}
+
+	printf("Receiving message from Chrome: %s", buffer);
+	printf("Sending %s to server...\n\n", buffer);
+
+	if (send(clientSocket, buffer, strlen(buffer), 0) < 0) {
+		printf("Send message failed with error: %d\n", WSAGetLastError());
+	}
+
+	// CWD (change working directory)
+
+	memset(buffer, 0, BUFFER_SIZE);
+	if (recv(clientSocket, buffer, BUFFER_SIZE, 0) < 0) {
+		printf("Recv failed with error: %d\n", WSAGetLastError());
+	}
+
+	printf("Receiving message from server: %s", buffer);
+	printf("Sending %s to Chrome...\n", buffer);
+
+	if (send(chromeSocket, buffer, strlen(buffer), 0) < 0) {
+		printf("Send message failed with error: %d\n", WSAGetLastError());
+	}
+
+	memset(buffer, 0, BUFFER_SIZE);
+	if (recv(chromeSocket, buffer, BUFFER_SIZE, 0) < 0) {
+		printf("Recv failed with error: %d\n", WSAGetLastError());
+	}
+
+	printf("Receiving message from Chrome: %s", buffer);
+	printf("Sending %s to server...\n\n", buffer);
+
+	if (send(clientSocket, buffer, strlen(buffer), 0) < 0) {
+		printf("Send message failed with error: %d\n", WSAGetLastError());
+	}
+
+	// LIST 
+
+	/*memset(buffer, 0, BUFFER_SIZE);
+	if (recv(clientSocket, buffer, BUFFER_SIZE, 0) < 0) {
+		printf("Recv failed with error: %d\n", WSAGetLastError());
+	}
+
+	printf("Receiving message from server: %s", buffer);
+	printf("Sending %s to Chrome...\n", buffer);
+
+	if (send(chromeSocket, buffer, strlen(buffer), 0) < 0) {
+		printf("Send message failed with error: %d\n", WSAGetLastError());
+	}*/
 }
