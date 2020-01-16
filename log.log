@@ -1,42 +1,42 @@
-Wed Jan 15 17:43:11 2020
+Thu Jan 16 23:30:10 2020
 Msg To:       UNKNOWN (0x00),   Automate ID: 0x00000000
 MsgFrom:      UNKNOWN (0x00),   Automate ID: 0x00000000
 Received Msg: (0x0000),         Length: 0  Coding type: 0
 00 00 00 cd | 00 00 00 00 | 00 00 00 00 | 00 00 cd cd | cd cd 00 00 | 00 
-State: 0 -> 1
+State: 0 -> 0
 ________________________________________________________________________________________
-Wed Jan 15 17:43:15 2020
+Thu Jan 16 23:30:14 2020
 Msg To:       UNKNOWN (0x00),   Automate ID: 0x00000000
 MsgFrom:      UNKNOWN (0x00),   Automate ID: 0x00000000
 Received Msg: (0x0001),         Length: 0  Coding type: 0
 00 00 00 cd | 01 00 00 00 | 00 00 00 00 | 00 00 cd cd | cd cd 00 00 | 00 
-State: 1 -> 2
+State: 0 -> 1
 ________________________________________________________________________________________
-Wed Jan 15 17:43:15 2020
+Thu Jan 16 23:30:14 2020
 Msg To:       UNKNOWN (0x00),   Automate ID: 0x00000000
 MsgFrom:      UNKNOWN (0x00),   Automate ID: 0x00000000
 Received Msg: (0x0002),         Length: 0  Coding type: 0
 00 00 00 cd | 02 00 00 00 | 00 00 00 00 | 00 00 cd cd | cd cd 00 00 | 00 
-State: 2 -> 2
+State: 1 -> 1
 ________________________________________________________________________________________
-Wed Jan 15 17:43:15 2020
+Thu Jan 16 23:30:14 2020
 Msg To:       UNKNOWN (0x00),   Automate ID: 0x00000000
 MsgFrom:      UNKNOWN (0x00),   Automate ID: 0x00000000
 Received Msg: (0x0003),         Length: 0  Coding type: 0
 00 00 00 cd | 03 00 00 00 | 00 00 00 00 | 00 00 cd cd | cd cd 00 00 | 00 
-State: 2 -> 3
+State: 1 -> 2
 ________________________________________________________________________________________
-Wed Jan 15 17:43:15 2020
+Thu Jan 16 23:30:14 2020
 Msg To:       UNKNOWN (0x00),   Automate ID: 0x00000000
 MsgFrom:      UNKNOWN (0x00),   Automate ID: 0x00000000
 Received Msg: (0x0004),         Length: 0  Coding type: 0
 00 00 00 cd | 04 00 00 00 | 00 00 00 00 | 00 00 cd cd | cd cd 00 00 | 00 
-State: 3 -> 4
+State: 2 -> 0
 ________________________________________________________________________________________
-Wed Jan 15 17:43:15 2020
+Thu Jan 16 23:30:14 2020
 Msg To:       UNKNOWN (0x00),   Automate ID: 0x00000000
 MsgFrom:      UNKNOWN (0x00),   Automate ID: 0x00000000
 Received Msg: (0x0005),         Length: 0  Coding type: 0
 00 00 00 cd | 05 00 00 00 | 00 00 00 00 | 00 00 cd cd | cd cd 00 00 | 00 
-State: 4 -> 4
+State: 0 -> 0
 ________________________________________________________________________________________

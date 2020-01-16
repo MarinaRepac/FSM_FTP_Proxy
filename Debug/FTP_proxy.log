@@ -1,4 +1,4 @@
-﻿Build started 15-Jan-20 5:43:08 PM.
+﻿Build started 16-Jan-20 11:30:07 PM.
      1>Project "C:\Users\USER\Desktop\FSM_FTP_Proxy\FTP_proxy.vcxproj" on node 2 (build target(s)).
      1>InitializeBuildStatus:
          Creating ".\Debug\FTP_proxy.unsuccessfulbuild" because "AlwaysCreate" was specified.
@@ -48,4 +48,4 @@
 
 Build succeeded.
 
-Time Elapsed 00:00:01.92
+Time Elapsed 00:00:02.46
