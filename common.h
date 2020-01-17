@@ -11,7 +11,7 @@
 #define BUFFER_SIZE 1000
 
 // message buffer size
-#define BUFFER_SIZE 2000
+#define BUFFER_SIZE 200000
 
 // Automate types
 const uint8 PROXY_FSM = 0x00;

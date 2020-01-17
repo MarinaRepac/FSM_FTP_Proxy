@@ -1,15 +1,15 @@
 #include "proxy.h"
 #include <WinSock.h>
-#include <string>
 
+#include <fstream>
 #include <iostream>
 using namespace std;
 
 // address structures
-sockaddr_in proxyAddress, serverAddress, proxyAddress1024, serverAddress1024;
+sockaddr_in proxyAddress, serverAddress, proxyAddress1024, serverAddress1024, proxyAddressRETR, serverAddressRETR;
 
 // sockets
-SOCKET serverSocket, browserSocket, clientSocket, serverSocket1024, browserSocket1024, clientSocket1024, browserSocketNew;
+SOCKET serverSocket, browserSocket, clientSocket, serverSocket1024, browserSocket1024, clientSocket1024, serverSocketRETR, browserSocketRETR, clientSocketRETR;
 
 // message buffer
 char buffer[BUFFER_SIZE];
@@ -89,7 +89,7 @@ void ProxyAutomate::connectingToChrome() {
 	memset((char*)&proxyAddress, 0, sizeof(proxyAddress));
     proxyAddress.sin_family = AF_INET; 							
 	proxyAddress.sin_addr.S_un.S_addr = inet_addr(ADDRESS);			
-	proxyAddress.sin_port = htons(PROXY_PORT);					
+	proxyAddress.sin_port = htons(21);					
 
     // Create a proxy socket for browser
     serverSocket = socket(AF_INET,			// IPv4 address famly
@@ -147,8 +147,9 @@ void ProxyAutomate::connectingToFTP() {
 
 	serverAddress.sin_family = AF_INET; 				
 	//serverAddress.sin_addr.S_un.S_addr = inet_addr(ADDRESS);	
-	//serverAddress.sin_addr.S_un.S_addr = inet_addr("10.81.35.53");	
-	serverAddress.sin_addr.S_un.S_addr = inet_addr("192.168.1.11");	
+	serverAddress.sin_addr.S_un.S_addr = inet_addr("10.81.35.53");	
+	//serverAddress.sin_addr.S_un.S_addr = inet_addr("192.168.1.11");	
+	//serverAddress.sin_addr.S_un.S_addr = inet_addr("10.81.35.62");	
 	serverAddress.sin_port = htons(SERVER_PORT);	
 
 	// Create a proxy socket for server
@@ -447,14 +448,16 @@ void ProxyAutomate::connecting_port_1024() {
 							  SOCK_STREAM,		// stream socket
 							  0);				// TCP
 
+	// aktivni soket            pasivni soket
 	browserSocket1024 = accept(serverSocket1024, (struct sockaddr *)&proxyAddress1024, NULL);
 
 	printf("--- Browser connection request arrived...\n");
 
 	serverAddress1024.sin_family = AF_INET; 					
 	//serverAddress1024.sin_addr.S_un.S_addr = inet_addr(ADDRESS);
-	//serverAddress1024.sin_addr.S_un.S_addr = inet_addr("10.81.35.53");
-	serverAddress1024.sin_addr.S_un.S_addr = inet_addr("192.168.1.11");	
+	serverAddress1024.sin_addr.S_un.S_addr = inet_addr("10.81.35.53");
+	//serverAddress1024.sin_addr.S_un.S_addr = inet_addr("192.168.1.11");	
+	//serverAddress1024.sin_addr.S_un.S_addr = inet_addr("10.81.35.62");
 	serverAddress1024.sin_port = htons(1024);	
 
 	// Create a proxy socket for server
@@ -528,6 +531,59 @@ void ProxyAutomate::connecting_port_1024() {
 		printf("Send message failed with error: %d\n", WSAGetLastError());
 	}
 
+	PrepareNewMessage(0x00, MSG_Download);
+		SetMsgToAutomate(PROXY_FSM);
+		SetMsgObjectNumberTo(GetObjectId());
+		SendMessage(PROXY_MBX_ID);
+		SetState(RETR);
+
+	
+
+	/*int x;
+	if ((x = connect(clientSocket1024, (struct sockaddr *)&serverAddress1024, sizeof(serverAddress1024))) < 0) {
+		printf("Socket connect failed with error: %d\n", WSAGetLastError());
+	}
+	cout << "CONNECT " << x << endl;
+	printf("--- Proxy connected to server...\n\n");*/
+
+
+
+	/*char command_word[5];
+
+	for(int i = 0; i < 4; i++) {
+		command_word[i] = buffer[i];
+	}
+	command_word[4] = 0;
+
+	printf("--- COMMAND WORD: %s", command_word);*/
+
+	/*if (buffer[0] == 'R') {
+		PrepareNewMessage(0x00, MSG_Download);
+		SetMsgToAutomate(PROXY_FSM);
+		SetMsgObjectNumberTo(GetObjectId());
+		SendMessage(PROXY_MBX_ID);
+		SetState(RETR);
+	} else if (buffer[0] == 'S') {
+		PrepareNewMessage(0x00, MSG_Upload);
+		SetMsgToAutomate(PROXY_FSM);
+		SetMsgObjectNumberTo(GetObjectId());
+		SendMessage(PROXY_MBX_ID);
+		SetState(STOR);
+	} else if (buffer[0] == 'Q') {
+		PrepareNewMessage(0x00, MSG_Disconnecting);
+		SetMsgToAutomate(PROXY_FSM);
+		SetMsgObjectNumberTo(GetObjectId());
+		SendMessage(PROXY_MBX_ID);
+		SetState(QUIT);
+	}*/
+
+}
+
+void ProxyAutomate::retr() {
+	printf("\n-----------------------------------------------------------\n");
+	printf("RETR - DOWNLOADING\n");
+	printf("-----------------------------------------------------------\n\n");
+
 	// PASV
 	memset(buffer, 0, BUFFER_SIZE);
 	if (recv(browserSocket, buffer, BUFFER_SIZE, 0) < 0) {
@@ -551,6 +607,33 @@ void ProxyAutomate::connecting_port_1024() {
 	if (send(browserSocket, buffer, strlen(buffer), 0) < 0) {
 		printf("Send message failed with error: %d\n", WSAGetLastError());
 	}
+
+
+
+	// opening new sockets for data transfer
+	browserSocketRETR = socket(AF_INET,			// IPv4 address famly
+							  SOCK_STREAM,		// stream socket
+							  0);				// TCP
+
+	browserSocketRETR = accept(serverSocket1024, (struct sockaddr *)&proxyAddress1024, NULL);
+
+	printf("--- Browser connection request arrived...\n");
+
+	// Create a proxy socket for server
+	clientSocketRETR = socket(AF_INET,			// IPv4 address famly
+						      SOCK_STREAM,		// stream socket
+						      0);				// TCP
+
+	if (connect(clientSocketRETR, (struct sockaddr *)&serverAddress1024, sizeof(serverAddress1024)) < 0) {
+		printf("Socket connect failed with error: %d\n", WSAGetLastError());
+	}
+
+	printf("--- Proxy connected to server...\n\n");
+
+
+
+
+
 
 	// SIZE /file_name
 	memset(buffer, 0, BUFFER_SIZE);
@@ -624,44 +707,42 @@ void ProxyAutomate::connecting_port_1024() {
 		printf("Send message failed with error: %d\n", WSAGetLastError());
 	}
 
-	// three way handshake
+	
 
-	/*char command_word[5];
 
-	for(int i = 0; i < 4; i++) {
-		command_word[i] = buffer[i];
+
+
+
+
+	
+
+	// receiving file
+
+	// od servera na 1024
+	memset(buffer, 0, BUFFER_SIZE);
+	if (recv(clientSocketRETR, buffer, BUFFER_SIZE, 0) < 0) {
+		printf("Recv failed with error: %d\n", WSAGetLastError());
 	}
-	command_word[4] = 0;
 
-	printf("--- COMMAND WORD: %s", command_word);*/
+	printf("--- FTP_SERVER: %s", buffer);
 
-	/*if (buffer[0] == 'R') {
-		PrepareNewMessage(0x00, MSG_Download);
-		SetMsgToAutomate(PROXY_FSM);
-		SetMsgObjectNumberTo(GetObjectId());
-		SendMessage(PROXY_MBX_ID);
-		SetState(RETR);
-	} else if (buffer[0] == 'S') {
-		PrepareNewMessage(0x00, MSG_Upload);
-		SetMsgToAutomate(PROXY_FSM);
-		SetMsgObjectNumberTo(GetObjectId());
-		SendMessage(PROXY_MBX_ID);
-		SetState(STOR);
-	} else if (buffer[0] == 'Q') {
-		PrepareNewMessage(0x00, MSG_Disconnecting);
-		SetMsgToAutomate(PROXY_FSM);
-		SetMsgObjectNumberTo(GetObjectId());
-		SendMessage(PROXY_MBX_ID);
-		SetState(QUIT);
-	}*/
+	if (send(browserSocketRETR, buffer, strlen(buffer), 0) < 0) {
+		printf("Send message failed with error: %d\n", WSAGetLastError());
+	}
 
-}
 
-void ProxyAutomate::retr() {
-	printf("\n-----------------------------------------------------------\n");
-	printf("RETR - DOWNLOADING\n");
-	printf("-----------------------------------------------------------\n\n");
 
+
+	memset(buffer, 0, BUFFER_SIZE);
+	if (recv(clientSocket, buffer, BUFFER_SIZE, 0) < 0) {
+		printf("Recv failed with error: %d\n", WSAGetLastError());
+	}
+
+	printf("--- FTP_SERVER: %s", buffer);
+
+	if (send(browserSocket, buffer, strlen(buffer), 0) < 0) {
+		printf("Send message failed with error: %d\n", WSAGetLastError());
+	}
 }
 
 void ProxyAutomate::stor() {
