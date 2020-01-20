@@ -1,20 +1,15 @@
 #include "proxy.h"
 #include <WinSock.h>
-
 #include <fstream>
-#include <iostream>
-using namespace std;
 
-// address structures
-sockaddr_in proxyAddress, serverAddress, proxyAddress1024, serverAddress1024, proxyAddressRETR, serverAddressRETR;
+sockaddr_in proxyAddress, serverAddress, proxyAddress1024, serverAddress1024, proxyAddressSTOR;
 
-// sockets
-SOCKET serverSocket, browserSocket, clientSocket, serverSocket1024, browserSocket1024, clientSocket1024, serverSocketRETR, browserSocketRETR, clientSocketRETR;
+SOCKET serverSocket, browserSocket, clientSocket, serverSocket1024, browserSocket1024, clientSocket1024, 
+	   serverSocketRETR, browserSocketRETR, clientSocketRETR;
 
-// message buffer
 char buffer[BUFFER_SIZE];
 
-ProxyAutomate::ProxyAutomate() : FiniteStateMachine( PROXY_FSM, PROXY_MBX_ID, 10, 10, 10) {
+ProxyAutomate::ProxyAutomate() : FiniteStateMachine( PROXY_FSM, PROXY_MBX_ID, 0, 6, 10) {
 }
 
 ProxyAutomate::~ProxyAutomate() {
@@ -52,28 +47,57 @@ void ProxyAutomate::Initialize() {
 	SetState(CONNECTING);
 	SetDefaultFSMData();
 
-	InitEventProc(CONNECTING, MSG_ConnectingToChrome, (PROC_FUN_PTR)&ProxyAutomate::connectingToChrome);
-	InitEventProc(CONNECTING, MSG_ConnectingToServer, (PROC_FUN_PTR)&ProxyAutomate::connectingToFTP);
-	InitEventProc(AUTHENTICATION, MSG_UserCheck, (PROC_FUN_PTR)&ProxyAutomate::user_check);
-	InitEventProc(AUTHENTICATION, MSG_PasswordCheck, (PROC_FUN_PTR)&ProxyAutomate::pass_check);
-	InitEventProc(LOGGED_IN, MSG_LoggedIn, (PROC_FUN_PTR)&ProxyAutomate::logged_in);
-	InitEventProc(CONNECTING, MSG_ConnectingPort1024, (PROC_FUN_PTR)&ProxyAutomate::connecting_port_1024);
-	InitEventProc(RETR, MSG_Download, (PROC_FUN_PTR)&ProxyAutomate::retr);
-	InitEventProc(STOR, MSG_Upload, (PROC_FUN_PTR)&ProxyAutomate::stor);
-	InitEventProc(QUIT, MSG_Disconnecting, (PROC_FUN_PTR)&ProxyAutomate::disconnect);
+	InitEventProc(CONNECTING, MSG_ConnectingToBrowser, (PROC_FUN_PTR)&ProxyAutomate::ConnectingToBrowser);
+	InitEventProc(CONNECTING, MSG_ConnectingToServer, (PROC_FUN_PTR)&ProxyAutomate::ConnectingToFTP);
+	InitEventProc(AUTHENTICATION, MSG_UserCheck, (PROC_FUN_PTR)&ProxyAutomate::UserCheck);
+	InitEventProc(AUTHENTICATION, MSG_PasswordCheck, (PROC_FUN_PTR)&ProxyAutomate::PassCheck);
+	InitEventProc(LOGGED_IN, MSG_LoggedIn, (PROC_FUN_PTR)&ProxyAutomate::LoggedIn);
+	InitEventProc(SWITCH_PORT, MSG_SwitchPort1024, (PROC_FUN_PTR)&ProxyAutomate::SwitchPort1024);
+	InitEventProc(RETR, MSG_Download, (PROC_FUN_PTR)&ProxyAutomate::Retr);
+	InitEventProc(QUIT, MSG_Disconnecting, (PROC_FUN_PTR)&ProxyAutomate::Disconnect);
 }
 
 /* Initial system message */
 void ProxyAutomate::Start() {
-	PrepareNewMessage(0x00, MSG_ConnectingToChrome);
+	PrepareNewMessage(0x00, MSG_ConnectingToBrowser);
 	SetMsgToAutomate(PROXY_FSM);
 	SetMsgObjectNumberTo(GetObjectId());
 	SendMessage(PROXY_MBX_ID);
 }
 
-void ProxyAutomate::connectingToChrome() {
+// browser socket (data from browser)
+// client socket (data from server)
+// send data from browser to server
+void ProxyAutomate::SendToServer(SOCKET browser, SOCKET client) {
+	memset(buffer, 0, BUFFER_SIZE);
+	if (recv(browser, buffer, BUFFER_SIZE, 0) < 0) {
+		printf("Recv failed with error: %d\n", WSAGetLastError());
+	}
+
+	printf("--- BROWSER: %s", buffer);
+
+	if (send(client, buffer, strlen(buffer), 0) < 0) {
+		printf("Send message failed with error: %d\n", WSAGetLastError());
+	}
+}
+
+// send data from server to browser
+void ProxyAutomate::SendToBrowser(SOCKET client, SOCKET browser) {
+	memset(buffer, 0, BUFFER_SIZE);
+	if (recv(client, buffer, BUFFER_SIZE, 0) < 0) {
+		printf("Recv failed with error: %d\n", WSAGetLastError());
+	}
+
+	printf("--- FTP_SERVER: %s", buffer);
+
+	if (send(browser, buffer, strlen(buffer), 0) < 0) {
+		printf("Send message failed with error: %d\n", WSAGetLastError());
+	}
+}
+
+void ProxyAutomate::ConnectingToBrowser() {
 	printf("\n-----------------------------------------------------------\n"); 
-	printf("CONNECTING - GOOGLE CHROME\n");
+	printf("CONNECTING - BROWSER\n");
 	printf("-----------------------------------------------------------\n\n"); 
 
 	// WSADATA data structure that is to receive details of the Windows Sockets implementation
@@ -88,8 +112,8 @@ void ProxyAutomate::connectingToChrome() {
     // Initialize proxyAddress structure used by bind function
 	memset((char*)&proxyAddress, 0, sizeof(proxyAddress));
     proxyAddress.sin_family = AF_INET; 							
-	proxyAddress.sin_addr.S_un.S_addr = inet_addr(ADDRESS);			
-	proxyAddress.sin_port = htons(21);					
+	proxyAddress.sin_addr.S_un.S_addr = inet_addr(PROXY_ADDRESS);			
+	proxyAddress.sin_port = htons(PROXY_PORT);					
 
     // Create a proxy socket for browser
     serverSocket = socket(AF_INET,			// IPv4 address famly
@@ -131,7 +155,7 @@ void ProxyAutomate::connectingToChrome() {
 	SetState(CONNECTING);
 }
 
-void ProxyAutomate::connectingToFTP() {
+void ProxyAutomate::ConnectingToFTP() {
 	printf("\n-----------------------------------------------------------\n");
 	printf("CONNECTING - FTP SERVER\n");
 	printf("-----------------------------------------------------------\n\n");
@@ -145,11 +169,8 @@ void ProxyAutomate::connectingToFTP() {
         printf("WSAStartup failed with error: %d\n", WSAGetLastError());
     }
 
-	serverAddress.sin_family = AF_INET; 				
-	//serverAddress.sin_addr.S_un.S_addr = inet_addr(ADDRESS);	
-	serverAddress.sin_addr.S_un.S_addr = inet_addr("10.81.35.53");	
-	//serverAddress.sin_addr.S_un.S_addr = inet_addr("192.168.1.11");	
-	//serverAddress.sin_addr.S_un.S_addr = inet_addr("10.81.35.62");	
+	serverAddress.sin_family = AF_INET; 					
+	serverAddress.sin_addr.S_un.S_addr = inet_addr(SERVER_ADDRESS);		
 	serverAddress.sin_port = htons(SERVER_PORT);	
 
 	// Create a proxy socket for server
@@ -164,16 +185,7 @@ void ProxyAutomate::connectingToFTP() {
 	printf("--- Proxy connected to server...\n");
 
 	// 220 Welcome to Quick 'n Easy FTP Server
-	memset(buffer, 0, BUFFER_SIZE);
-	int bytes = recv(clientSocket, buffer, BUFFER_SIZE, 0);
-	if (bytes > 0)
-	{
-		printf("--- FTP_SERVER: %s", buffer);
-	}
-
-	if (send(browserSocket, buffer, strlen(buffer), 0) < 0) {
-		printf("Send message failed with error: %d\n", WSAGetLastError());
-	}
+	SendToBrowser(clientSocket, browserSocket);
 
 	PrepareNewMessage(0x00, MSG_UserCheck);
 	SetMsgToAutomate(PROXY_FSM);
@@ -182,22 +194,13 @@ void ProxyAutomate::connectingToFTP() {
 	SetState(AUTHENTICATION);
 }
 
-void ProxyAutomate::user_check() {
+void ProxyAutomate::UserCheck() {
 	printf("\n-----------------------------------------------------------\n");
 	printf("USER CHECK\n");
 	printf("-----------------------------------------------------------\n\n");
 
 	// USER ****
-	memset(buffer, 0, BUFFER_SIZE);
-	if (recv(browserSocket, buffer, BUFFER_SIZE, 0) < 0) {
-		printf("Recv failed with error: %d\n", WSAGetLastError());
-	}
-
-	printf("--- BROWSER: %s", buffer);
-
-	if (send(clientSocket, buffer, strlen(buffer), 0) < 0) {
-		printf("Send message failed with error: %d\n", WSAGetLastError());
-	}
+	SendToServer(browserSocket, clientSocket);
 
 	PrepareNewMessage(0x00, MSG_PasswordCheck);
 	SetMsgToAutomate(PROXY_FSM);
@@ -206,35 +209,17 @@ void ProxyAutomate::user_check() {
 	SetState(AUTHENTICATION);
 }
 
-void ProxyAutomate::pass_check() {
+void ProxyAutomate::PassCheck() {
 	printf("\n-----------------------------------------------------------\n");
 	printf("PASSWORD CHECK\n");
 	printf("-----------------------------------------------------------\n\n");
 
 	// 331 Password required for ****
-	memset(buffer, 0, BUFFER_SIZE);
-	if (recv(clientSocket, buffer, BUFFER_SIZE, 0) < 0) {
-		printf("Recv failed with error: %d\n", WSAGetLastError());
-	}
-
-	printf("--- FTP_SERVER: %s", buffer);
-
-	if (send(browserSocket, buffer, strlen(buffer), 0) < 0) {
-		printf("Send message failed with error: %d\n", WSAGetLastError());
-	}
+	SendToBrowser(clientSocket, browserSocket);
 
 	// PASS ****
-	memset(buffer, 0, BUFFER_SIZE);
-	if (recv(browserSocket, buffer, BUFFER_SIZE, 0) < 0) {
-		printf("Recv failed with error: %d\n", WSAGetLastError());
-	}
-
-	printf("--- BROWSER: %s", buffer);
-
-	if (send(clientSocket, buffer, strlen(buffer), 0) < 0) {
-		printf("Send message failed with error: %d\n", WSAGetLastError());
-	}
-
+	SendToServer(browserSocket, clientSocket);
+		
 	PrepareNewMessage(0x00, MSG_LoggedIn);
 	SetMsgToAutomate(PROXY_FSM);
 	SetMsgObjectNumberTo(GetObjectId());
@@ -242,165 +227,29 @@ void ProxyAutomate::pass_check() {
 	SetState(LOGGED_IN);
 }
 
-void ProxyAutomate::logged_in() {
+void ProxyAutomate::LoggedIn() {
 	printf("\n-----------------------------------------------------------\n");
 	printf("LOGGED IN\n");
 	printf("-----------------------------------------------------------\n\n");
 
 	// 230 User successfully logged in.
-	memset(buffer, 0, BUFFER_SIZE);
-	if (recv(clientSocket, buffer, BUFFER_SIZE, 0) < 0) {
-		printf("Recv failed with error: %d\n", WSAGetLastError());
-	}
-
-	printf("--- FTP_SERVER: %s", buffer);
-
-	if (send(browserSocket, buffer, strlen(buffer), 0) < 0) {
-		printf("Send message failed with error: %d\n", WSAGetLastError());
-	}
-
-	// SYST (return system type)
-	memset(buffer, 0, BUFFER_SIZE);
-	if (recv(browserSocket, buffer, BUFFER_SIZE, 0) < 0) {
-		printf("Recv failed with error: %d\n", WSAGetLastError());
-	}
-
-	printf("--- BROWSER: %s", buffer);
-
-	if (send(clientSocket, buffer, strlen(buffer), 0) < 0) {
-		printf("Send message failed with error: %d\n", WSAGetLastError());
-	}
-
-	// 215 UNIX emulated by Quick 'n Easy FTP Server.
-	memset(buffer, 0, BUFFER_SIZE);
-	if (recv(clientSocket, buffer, BUFFER_SIZE, 0) < 0) {
-		printf("Recv failed with error: %d\n", WSAGetLastError());
-	}
-
-	printf("--- FTP_SERVER: %s", buffer);
-
-	if (send(browserSocket, buffer, strlen(buffer), 0) < 0) {
-		printf("Send message failed with error: %d\n", WSAGetLastError());
-	}
-
-	// FEAT (get the feature list implemented by the server)
-	memset(buffer, 0, BUFFER_SIZE);
-	if (recv(browserSocket, buffer, BUFFER_SIZE, 0) < 0) {
-		printf("Recv failed with error: %d\n", WSAGetLastError());
-	}
-
-	printf("--- BROWSER: %s", buffer);
-
-	if (send(clientSocket, buffer, strlen(buffer), 0) < 0) {
-		printf("Send message failed with error: %d\n", WSAGetLastError());
-	}
-
-	// 211-Extensions supported: SIZE, MDTM, XCRC
-	memset(buffer, 0, BUFFER_SIZE);
-	if (recv(clientSocket, buffer, BUFFER_SIZE, 0) < 0) {
-		printf("Recv failed with error: %d\n", WSAGetLastError());
-	}
-
-	printf("--- FTP_SERVER: %s\n", buffer);
-
-	if (send(browserSocket, buffer, strlen(buffer), 0) < 0) {
-		printf("Send message failed with error: %d\n", WSAGetLastError());
-	}
-
-	// PWD (print working directory; returns the current directory of the host)
-	memset(buffer, 0, BUFFER_SIZE);
-	if (recv(browserSocket, buffer, BUFFER_SIZE, 0) < 0) {
-		printf("Recv failed with error: %d\n", WSAGetLastError());
-	}
-
-	printf("--- BROWSER: %s", buffer);
-
-	if (send(clientSocket, buffer, strlen(buffer), 0) < 0) {
-		printf("Send message failed with error: %d\n", WSAGetLastError());
-	}
-
-	// 257 "/" is current directory.
-	memset(buffer, 0, BUFFER_SIZE);
-	if (recv(clientSocket, buffer, BUFFER_SIZE, 0) < 0) {
-		printf("Recv failed with error: %d\n", WSAGetLastError());
-	}
-
-	printf("--- FTP_SERVER: %s", buffer);
-
-	if (send(browserSocket, buffer, strlen(buffer), 0) < 0) {
-		printf("Send message failed with error: %d\n", WSAGetLastError());
-	}
-
-	// TYPE I (sets the transfer mode - binary) 
-	memset(buffer, 0, BUFFER_SIZE);
-	if (recv(browserSocket, buffer, BUFFER_SIZE, 0) < 0) {
-		printf("Recv failed with error: %d\n", WSAGetLastError());
-	}
-
-	printf("--- BROWSER: %s", buffer);
-
-	if (send(clientSocket, buffer, strlen(buffer), 0) < 0) {
-		printf("Send message failed with error: %d\n", WSAGetLastError());
-	}
-
-	// 200 Type set to BINARY
-	memset(buffer, 0, BUFFER_SIZE);
-	if (recv(clientSocket, buffer, BUFFER_SIZE, 0) < 0) {
-		printf("Recv failed with error: %d\n", WSAGetLastError());
-	}
-
-	printf("--- FTP_SERVER: %s", buffer);
-
-	if (send(browserSocket, buffer, strlen(buffer), 0) < 0) {
-		printf("Send message failed with error: %d\n", WSAGetLastError());
-	}
-
-	// PASV (enter passive mode)
-	memset(buffer, 0, BUFFER_SIZE);
-	if (recv(browserSocket, buffer, BUFFER_SIZE, 0) < 0) {
-		printf("Recv failed with error: %d\n", WSAGetLastError());
-	}
-
-	printf("--- BROWSER: %s", buffer);
-
-	if (send(clientSocket, buffer, strlen(buffer), 0) < 0) {
-		printf("Send message failed with error: %d\n", WSAGetLastError());
-	}
-
-	// 227 Entering Passive Mode (127,0,0,1,4,0)
-	memset(buffer, 0, BUFFER_SIZE);
-	if (recv(clientSocket, buffer, BUFFER_SIZE, 0) < 0) {
-		printf("Recv failed with error: %d\n", WSAGetLastError());
-	}
-
-	printf("--- FTP_SERVER: %s", buffer);
-
-	if (send(browserSocket, buffer, strlen(buffer), 0) < 0) {
-		printf("Send message failed with error: %d\n", WSAGetLastError());
-	}
-
+	// ...
 	// CWD / (change working directory)
-	memset(buffer, 0, BUFFER_SIZE);
-	if (recv(browserSocket, buffer, BUFFER_SIZE, 0) < 0) {
-		printf("Recv failed with error: %d\n", WSAGetLastError());
+	for (int i = 0; i < 6; i++) {
+		SendToBrowser(clientSocket,browserSocket );
+		SendToServer(browserSocket, clientSocket);
 	}
 
-	printf("--- BROWSER: %s", buffer);
-
-	if (send(clientSocket, buffer, strlen(buffer), 0) < 0) {
-		printf("Send message failed with error: %d\n", WSAGetLastError());
-	}
-
-	PrepareNewMessage(0x00, MSG_ConnectingPort1024);
+	PrepareNewMessage(0x00, MSG_SwitchPort1024);
 	SetMsgToAutomate(PROXY_FSM);
 	SetMsgObjectNumberTo(GetObjectId());
 	SendMessage(PROXY_MBX_ID);
-	SetState(CONNECTING);
+	SetState(SWITCH_PORT);
 }
 
-void ProxyAutomate::connecting_port_1024() {
+void ProxyAutomate::SwitchPort1024() {
 	printf("\n-----------------------------------------------------------\n");
-	printf("CONNECTING - SWITCHING TO PORT 1024\n");
+	printf("SWITCH PORT 1024\n");
 	printf("-----------------------------------------------------------\n\n");
 
 	// WSADATA data structure that is to receive details of the Windows Sockets implementation
@@ -415,8 +264,8 @@ void ProxyAutomate::connecting_port_1024() {
 	// Initialize proxyAddress structure used by bind function
 	memset((char*)&proxyAddress1024, 0, sizeof(proxyAddress1024));
     proxyAddress1024.sin_family = AF_INET; 							
-	proxyAddress1024.sin_addr.S_un.S_addr = inet_addr(ADDRESS);			
-	proxyAddress1024.sin_port = htons(1024);					
+	proxyAddress1024.sin_addr.S_un.S_addr = inet_addr(PROXY_ADDRESS);
+	proxyAddress1024.sin_port = htons(DATA_PORT);					
 
     // Create a proxy socket for browser
     serverSocket1024 = socket(AF_INET,			// IPv4 address famly
@@ -448,17 +297,13 @@ void ProxyAutomate::connecting_port_1024() {
 							  SOCK_STREAM,		// stream socket
 							  0);				// TCP
 
-	// aktivni soket            pasivni soket
 	browserSocket1024 = accept(serverSocket1024, (struct sockaddr *)&proxyAddress1024, NULL);
 
 	printf("--- Browser connection request arrived...\n");
 
 	serverAddress1024.sin_family = AF_INET; 					
-	//serverAddress1024.sin_addr.S_un.S_addr = inet_addr(ADDRESS);
-	serverAddress1024.sin_addr.S_un.S_addr = inet_addr("10.81.35.53");
-	//serverAddress1024.sin_addr.S_un.S_addr = inet_addr("192.168.1.11");	
-	//serverAddress1024.sin_addr.S_un.S_addr = inet_addr("10.81.35.62");
-	serverAddress1024.sin_port = htons(1024);	
+	serverAddress1024.sin_addr.S_un.S_addr = inet_addr(SERVER_ADDRESS);	
+	serverAddress1024.sin_port = htons(DATA_PORT);	
 
 	// Create a proxy socket for server
 	clientSocket1024 = socket(AF_INET,			// IPv4 address famly
@@ -471,144 +316,47 @@ void ProxyAutomate::connecting_port_1024() {
 
 	printf("--- Proxy connected to server...\n\n");
 	
-	// 250 "/" is current directory. 
-	memset(buffer, 0, BUFFER_SIZE);
-	if (recv(clientSocket, buffer, BUFFER_SIZE, 0) < 0) {
-		printf("Recv failed with error: %d\n", WSAGetLastError());
-	}
-
-	printf("--- FTP_SERVER: %s", buffer);
-
-	if (send(browserSocket, buffer, strlen(buffer), 0) < 0) {
-		printf("Send message failed with error: %d\n", WSAGetLastError());
-	}
+	// 250 "/" is current directory.
+	SendToBrowser(clientSocket, browserSocket);
 
 	// LIST (returns information of a file or directory if specified, else information of the current working directory is returned)
-	memset(buffer, 0, BUFFER_SIZE);
-	if (recv(browserSocket, buffer, BUFFER_SIZE, 0) < 0) {
-		printf("Recv failed with error: %d\n", WSAGetLastError());
-	}
-
-	printf("--- BROWSER: %s", buffer);
-
-	if (send(clientSocket, buffer, strlen(buffer), 0) < 0) {
-		printf("Send message failed with error: %d\n", WSAGetLastError());
-	}
+	SendToServer(browserSocket, clientSocket);
 
 	// receiving list of files from server
+
 	memset(buffer, 0, BUFFER_SIZE);
-	if (recv(clientSocket1024, buffer, BUFFER_SIZE, 0) < 0) {
-		printf("Recv failed with error: %d\n", WSAGetLastError());
-	}
+	while (recv(clientSocket1024, buffer, BUFFER_SIZE, 0) > 0) {
+		printf("--- FTP_SERVER: %s", buffer);
 
-	printf("--- FTP_SERVER: %s", buffer);
-
-	if (send(browserSocket1024, buffer, strlen(buffer), 0) < 0) {
-		printf("Send message failed with error: %d\n", WSAGetLastError());
+		if (send(browserSocket1024, buffer, strlen(buffer), 0) < 0) {
+			printf("Send message failed with error: %d\n", WSAGetLastError());
+		}
+		memset(buffer, 0, BUFFER_SIZE);
 	}
 
 	// 150 Opening ASCII mode data connection for directory list.
-	memset(buffer, 0, BUFFER_SIZE);
-	if (recv(clientSocket, buffer, BUFFER_SIZE, 0) < 0) {
-		printf("Recv failed with error: %d\n", WSAGetLastError());
-	}
-
-	printf("--- FTP_SERVER: %s", buffer);
-
-	if (send(browserSocket, buffer, strlen(buffer), 0) < 0) {
-		printf("Send message failed with error: %d\n", WSAGetLastError());
-	}
+	SendToBrowser(clientSocket, browserSocket);
 
 	// 226 Transfer complete
-	memset(buffer, 0, BUFFER_SIZE);
-	if (recv(clientSocket, buffer, BUFFER_SIZE, 0) < 0) {
-		printf("Recv failed with error: %d\n", WSAGetLastError());
-	}
-
-	printf("--- FTP_SERVER: %s", buffer);
-
-	if (send(browserSocket, buffer, strlen(buffer), 0) < 0) {
-		printf("Send message failed with error: %d\n", WSAGetLastError());
-	}
+	SendToBrowser(clientSocket, browserSocket);
 
 	PrepareNewMessage(0x00, MSG_Download);
 		SetMsgToAutomate(PROXY_FSM);
 		SetMsgObjectNumberTo(GetObjectId());
 		SendMessage(PROXY_MBX_ID);
 		SetState(RETR);
-
-	
-
-	/*int x;
-	if ((x = connect(clientSocket1024, (struct sockaddr *)&serverAddress1024, sizeof(serverAddress1024))) < 0) {
-		printf("Socket connect failed with error: %d\n", WSAGetLastError());
-	}
-	cout << "CONNECT " << x << endl;
-	printf("--- Proxy connected to server...\n\n");*/
-
-
-
-	/*char command_word[5];
-
-	for(int i = 0; i < 4; i++) {
-		command_word[i] = buffer[i];
-	}
-	command_word[4] = 0;
-
-	printf("--- COMMAND WORD: %s", command_word);*/
-
-	/*if (buffer[0] == 'R') {
-		PrepareNewMessage(0x00, MSG_Download);
-		SetMsgToAutomate(PROXY_FSM);
-		SetMsgObjectNumberTo(GetObjectId());
-		SendMessage(PROXY_MBX_ID);
-		SetState(RETR);
-	} else if (buffer[0] == 'S') {
-		PrepareNewMessage(0x00, MSG_Upload);
-		SetMsgToAutomate(PROXY_FSM);
-		SetMsgObjectNumberTo(GetObjectId());
-		SendMessage(PROXY_MBX_ID);
-		SetState(STOR);
-	} else if (buffer[0] == 'Q') {
-		PrepareNewMessage(0x00, MSG_Disconnecting);
-		SetMsgToAutomate(PROXY_FSM);
-		SetMsgObjectNumberTo(GetObjectId());
-		SendMessage(PROXY_MBX_ID);
-		SetState(QUIT);
-	}*/
-
 }
 
-void ProxyAutomate::retr() {
+void ProxyAutomate::Retr() {
 	printf("\n-----------------------------------------------------------\n");
 	printf("RETR - DOWNLOADING\n");
 	printf("-----------------------------------------------------------\n\n");
 
 	// PASV
-	memset(buffer, 0, BUFFER_SIZE);
-	if (recv(browserSocket, buffer, BUFFER_SIZE, 0) < 0) {
-		printf("Recv failed with error: %d\n", WSAGetLastError());
-	}
-
-	printf("--- BROWSER: %s", buffer);
-
-	if (send(clientSocket, buffer, strlen(buffer), 0) < 0) {
-		printf("Send message failed with error: %d\n", WSAGetLastError());
-	}
+	SendToServer(browserSocket, clientSocket);
 
 	// 227 Entering Passive Mode (192,168,1,11,4,0)
-	memset(buffer, 0, BUFFER_SIZE);
-	if (recv(clientSocket, buffer, BUFFER_SIZE, 0) < 0) {
-		printf("Recv failed with error: %d\n", WSAGetLastError());
-	}
-
-	printf("--- FTP_SERVER: %s", buffer);
-
-	if (send(browserSocket, buffer, strlen(buffer), 0) < 0) {
-		printf("Send message failed with error: %d\n", WSAGetLastError());
-	}
-
-
+	SendToBrowser(clientSocket, browserSocket);
 
 	// opening new sockets for data transfer
 	browserSocketRETR = socket(AF_INET,			// IPv4 address famly
@@ -630,131 +378,41 @@ void ProxyAutomate::retr() {
 
 	printf("--- Proxy connected to server...\n\n");
 
-
-
-
-
-
 	// SIZE /file_name
-	memset(buffer, 0, BUFFER_SIZE);
-	if (recv(browserSocket, buffer, BUFFER_SIZE, 0) < 0) {
-		printf("Recv failed with error: %d\n", WSAGetLastError());
-	}
-
-	printf("--- BROWSER: %s", buffer);
-
-	if (send(clientSocket, buffer, strlen(buffer), 0) < 0) {
-		printf("Send message failed with error: %d\n", WSAGetLastError());
-	}
-
-	// 213 15 (server return size of the file for download)
-	memset(buffer, 0, BUFFER_SIZE);
-	if (recv(clientSocket, buffer, BUFFER_SIZE, 0) < 0) {
-		printf("Recv failed with error: %d\n", WSAGetLastError());
-	}
-
-	printf("--- FTP_SERVER: %s", buffer);
-
-	if (send(browserSocket, buffer, strlen(buffer), 0) < 0) {
-		printf("Send message failed with error: %d\n", WSAGetLastError());
-	}
-
-	// MDTM /file_name (return the last-modified time of a specified file)
-	memset(buffer, 0, BUFFER_SIZE);
-	if (recv(browserSocket, buffer, BUFFER_SIZE, 0) < 0) {
-		printf("Recv failed with error: %d\n", WSAGetLastError());
-	}
-
-	printf("--- BROWSER: %s", buffer);
-
-	if (send(clientSocket, buffer, strlen(buffer), 0) < 0) {
-		printf("Send message failed with error: %d\n", WSAGetLastError());
-	}
-
-	// 213 20200116211436.000
-	memset(buffer, 0, BUFFER_SIZE);
-	if (recv(clientSocket, buffer, BUFFER_SIZE, 0) < 0) {
-		printf("Recv failed with error: %d\n", WSAGetLastError());
-	}
-
-	printf("--- FTP_SERVER: %s", buffer);
-
-	if (send(browserSocket, buffer, strlen(buffer), 0) < 0) {
-		printf("Send message failed with error: %d\n", WSAGetLastError());
-	}
-
-	// RETR /file_name
-	memset(buffer, 0, BUFFER_SIZE);
-	if (recv(browserSocket, buffer, BUFFER_SIZE, 0) < 0) {
-		printf("Recv failed with error: %d\n", WSAGetLastError());
-	}
-
-	printf("--- BROWSER: %s", buffer);
-
-	if (send(clientSocket, buffer, strlen(buffer), 0) < 0) {
-		printf("Send message failed with error: %d\n", WSAGetLastError());
-	}
-
+	// ...
 	// 150 Opening BINARY mode data connection for file transfer.
-	memset(buffer, 0, BUFFER_SIZE);
-	if (recv(clientSocket, buffer, BUFFER_SIZE, 0) < 0) {
-		printf("Recv failed with error: %d\n", WSAGetLastError());
+	for (int i = 0; i < 3; i++) {
+		SendToServer(browserSocket, clientSocket);
+		SendToBrowser(clientSocket, browserSocket);
 	}
-
-	printf("--- FTP_SERVER: %s", buffer);
-
-	if (send(browserSocket, buffer, strlen(buffer), 0) < 0) {
-		printf("Send message failed with error: %d\n", WSAGetLastError());
-	}
-
 	
-
-
-
-
-
-
-	
-
-	// receiving file
-
-	// od servera na 1024
-	memset(buffer, 0, BUFFER_SIZE);
-	if (recv(clientSocketRETR, buffer, BUFFER_SIZE, 0) < 0) {
-		printf("Recv failed with error: %d\n", WSAGetLastError());
-	}
-
-	printf("--- FTP_SERVER: %s", buffer);
-
-	if (send(browserSocketRETR, buffer, strlen(buffer), 0) < 0) {
-		printf("Send message failed with error: %d\n", WSAGetLastError());
-	}
-
-
-
+	// sending file to browser on port 1024
 
 	memset(buffer, 0, BUFFER_SIZE);
-	if (recv(clientSocket, buffer, BUFFER_SIZE, 0) < 0) {
-		printf("Recv failed with error: %d\n", WSAGetLastError());
+	while (recv(clientSocketRETR, buffer, BUFFER_SIZE, 0) > 0) {
+		printf("--- FTP_SERVER: %s", buffer);
+
+		if (send(browserSocketRETR, buffer, strlen(buffer), 0) < 0) {
+			printf("Send message failed with error: %d\n", WSAGetLastError());
+		}
+		memset(buffer, 0, BUFFER_SIZE);
 	}
 
-	printf("--- FTP_SERVER: %s", buffer);
-
-	if (send(browserSocket, buffer, strlen(buffer), 0) < 0) {
-		printf("Send message failed with error: %d\n", WSAGetLastError());
-	}
+	PrepareNewMessage(0x00, MSG_Disconnecting);
+	SetMsgToAutomate(PROXY_FSM);
+	SetMsgObjectNumberTo(GetObjectId());
+	SendMessage(PROXY_MBX_ID);
+	SetState(QUIT);
 }
 
-void ProxyAutomate::stor() {
-	printf("\n-----------------------------------------------------------\n");
-	printf("STOR - UPLOADING\n");
-	printf("-----------------------------------------------------------\n\n");
-	
-}
-
-void ProxyAutomate::disconnect() {
+void ProxyAutomate::Disconnect() {
 	printf("\n-----------------------------------------------------------\n");
 	printf("QUIT - DISCONNECTING\n");
 	printf("-----------------------------------------------------------\n\n");
 
+	closesocket(browserSocketRETR);
+
+	// 226 Transfer complete
+	SendToBrowser(clientSocket, browserSocket);
+	printf("--- Connection closed.\n");
 }

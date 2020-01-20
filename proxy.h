@@ -4,12 +4,12 @@
 #include <fsm.h>
 #include <fsmsystem.h>
 #include "common.h"
-
 #include "../kernel/stdMsgpc16pl16.h"
+
 typedef stdMsg_pc16_pl16 StandardMessage;
 
 class ProxyAutomate : public FiniteStateMachine {
-	enum ProxyAutomateStates { CONNECTING, AUTHENTICATION, LOGGED_IN, RETR, STOR, QUIT };
+	enum ProxyAutomateStates { CONNECTING, AUTHENTICATION, LOGGED_IN, SWITCH_PORT, RETR, QUIT };
 
 	StandardMessage StandardMsgCoding;
 
@@ -23,15 +23,14 @@ class ProxyAutomate : public FiniteStateMachine {
 
 	/* FSM functions */
 
-	void connectingToChrome();
-	void connectingToFTP();
-	void user_check();
-	void pass_check();
-	void logged_in();
-	void connecting_port_1024();
-	void retr();
-	void stor();
-	void disconnect();
+	void ConnectingToBrowser();
+	void ConnectingToFTP();
+	void UserCheck();
+	void PassCheck();
+	void LoggedIn();
+	void SwitchPort1024();
+	void Retr();
+	void Disconnect();
 
 public:
 	ProxyAutomate();
@@ -39,6 +38,8 @@ public:
 	
 	void Initialize();
 	void Start();
+	void SendToServer(SOCKET, SOCKET);
+	void SendToBrowser(SOCKET, SOCKET);
 };
 
 #endif /* _PROXY_H_ */
