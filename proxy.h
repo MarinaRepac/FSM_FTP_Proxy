@@ -4,8 +4,8 @@
 #include <fsm.h>
 #include <fsmsystem.h>
 #include "common.h"
-#include "../kernel/stdMsgpc16pl16.h"
 
+#include "../kernel/stdMsgpc16pl16.h"
 typedef stdMsg_pc16_pl16 StandardMessage;
 
 class ProxyAutomate : public FiniteStateMachine {
@@ -38,6 +38,9 @@ public:
 	
 	void Initialize();
 	void Start();
+
+	/* recv/send functions for server and browser */
+
 	void SendToServer(SOCKET, SOCKET);
 	void SendToBrowser(SOCKET, SOCKET);
 };

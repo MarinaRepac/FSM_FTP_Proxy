@@ -1,12 +1,18 @@
 #include "proxy.h"
 #include <WinSock.h>
-#include <fstream>
 
+#include <fstream>
+#include <iostream>
+using namespace std;
+
+// address structures
 sockaddr_in proxyAddress, serverAddress, proxyAddress1024, serverAddress1024, proxyAddressSTOR;
 
+// sockets
 SOCKET serverSocket, browserSocket, clientSocket, serverSocket1024, browserSocket1024, clientSocket1024, 
 	   serverSocketRETR, browserSocketRETR, clientSocketRETR;
 
+// message buffer
 char buffer[BUFFER_SIZE];
 
 ProxyAutomate::ProxyAutomate() : FiniteStateMachine( PROXY_FSM, PROXY_MBX_ID, 0, 6, 10) {
@@ -97,7 +103,7 @@ void ProxyAutomate::SendToBrowser(SOCKET client, SOCKET browser) {
 
 void ProxyAutomate::ConnectingToBrowser() {
 	printf("\n-----------------------------------------------------------\n"); 
-	printf("CONNECTING - BROWSER\n");
+	printf("CONNECTING - GOOGLE CHROME\n");
 	printf("-----------------------------------------------------------\n\n"); 
 
 	// WSADATA data structure that is to receive details of the Windows Sockets implementation
@@ -323,16 +329,7 @@ void ProxyAutomate::SwitchPort1024() {
 	SendToServer(browserSocket, clientSocket);
 
 	// receiving list of files from server
-
-	memset(buffer, 0, BUFFER_SIZE);
-	while (recv(clientSocket1024, buffer, BUFFER_SIZE, 0) > 0) {
-		printf("--- FTP_SERVER: %s", buffer);
-
-		if (send(browserSocket1024, buffer, strlen(buffer), 0) < 0) {
-			printf("Send message failed with error: %d\n", WSAGetLastError());
-		}
-		memset(buffer, 0, BUFFER_SIZE);
-	}
+	SendToBrowser(clientSocket1024, browserSocket1024);
 
 	// 150 Opening ASCII mode data connection for directory list.
 	SendToBrowser(clientSocket, browserSocket);
@@ -387,16 +384,7 @@ void ProxyAutomate::Retr() {
 	}
 	
 	// sending file to browser on port 1024
-
-	memset(buffer, 0, BUFFER_SIZE);
-	while (recv(clientSocketRETR, buffer, BUFFER_SIZE, 0) > 0) {
-		printf("--- FTP_SERVER: %s", buffer);
-
-		if (send(browserSocketRETR, buffer, strlen(buffer), 0) < 0) {
-			printf("Send message failed with error: %d\n", WSAGetLastError());
-		}
-		memset(buffer, 0, BUFFER_SIZE);
-	}
+	SendToBrowser(clientSocketRETR, browserSocketRETR);
 
 	PrepareNewMessage(0x00, MSG_Disconnecting);
 	SetMsgToAutomate(PROXY_FSM);

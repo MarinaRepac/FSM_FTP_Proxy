@@ -54,6 +54,7 @@ void main(int argc, char* argv[]) {
 	thread_handle = CreateThread(NULL, 0, SystemThread, NULL, 0, &thread_id);
 
 	/* Wait for end. */
+	//while(!g_ProgramEnd){}
 	getch();	
 
 	/* Notify the system to stop - this causes the thread to finish */
